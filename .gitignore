@@ -1,0 +1,10 @@
+.idea/
+
+*.iml
+*.log
+
+.DS_Store
+
+out/
+bin/
+pkg/
