@@ -5,13 +5,13 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path"
 )
 
 type ErrorCode int
 
 const (
 	UsageError ErrorCode = 1 << iota
+	MoveError
 )
 
 func main() {
@@ -31,7 +31,7 @@ func main() {
 
 	srcDirInfo, err := os.Stat(srcDir)
 	if err != nil {
-		ExitWithError(err, UsageError, "Couldn't get info on the source directory to move:", srcDirInfo)
+		ExitWithError(err, UsageError, "Couldn't get info on the source directory to move:", srcDir)
 	}
 
 	if !srcDirInfo.IsDir() {
@@ -46,9 +46,9 @@ func main() {
 
 	destParentDirInfo, err := os.Stat(destParentDir)
 	if err != nil {
-		err = os.MkdirAll(destParentDir, srcDirInfo.Mode())
+		err = os.MkdirAll(destParentDir, srcDirInfo.Mode()&os.ModePerm)
 		if err != nil {
-			ExitWithError(err, UsageError, "Couldn't get info on the destination parent directory to move to:", destParentDirInfo)
+			ExitWithError(err, UsageError, "Couldn't get info on the destination parent directory to move to:", destParentDir)
 		}
 
 		destParentDirInfo, err = os.Stat(destParentDir)
@@ -58,9 +58,10 @@ func main() {
 		ExitWithError(nil, UsageError, "Destination is not a directory:", destParentDir)
 	}
 
-	destDir := path.Join(destParentDir, path.Base(srcDir))
-
-	gomove.MoveDirectory(srcDir, destDir)
+	err = gomove.MoveDirectory(srcDir, destParentDir)
+	if err != nil {
+		ExitWithError(err, MoveError, "There were errors moving", srcDir, "to", destParentDir)
+	}
 }
 
 func ExitWithError(err error, exitCode ErrorCode, message ...interface{}) {
