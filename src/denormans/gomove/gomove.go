@@ -1,7 +1,6 @@
 package gomove
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -187,15 +186,7 @@ func MoveFile(srcFile string, destDir string) error {
 		return CloseFilesAfterErr(err, file)
 	}
 
-	srcReader := bufio.NewReader(file)
-	destWriter := bufio.NewWriter(newFile)
-
-	_, err = io.Copy(destWriter, srcReader)
-	if err != nil {
-		return CloseFilesAfterErr(err, file, newFile)
-	}
-
-	err = destWriter.Flush()
+	_, err = io.Copy(newFile, file)
 	if err != nil {
 		return CloseFilesAfterErr(err, file, newFile)
 	}
@@ -215,7 +206,18 @@ func MoveFile(srcFile string, destDir string) error {
 		return err
 	}
 
-	return os.Remove(srcFile)
+	err = os.Chtimes(destFile, srcFileInfo.ModTime(), srcFileInfo.ModTime())
+	if err != nil {
+		return err
+	}
+
+	err = os.Remove(srcFile)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Moved file '%s' to '%s'", srcFile, destFile)
+	return nil
 }
 
 func CloseFilesAfterErr(err error, files ...*os.File) error {
