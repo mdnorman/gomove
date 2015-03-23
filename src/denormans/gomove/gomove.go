@@ -59,7 +59,7 @@ func MoveDirectory(srcDir string, destParentDir string) error {
 		return CloseFilesAfterErr(err, dirFile)
 	}
 
-	moveErrors := make([]error, 0)
+	fileMover := NewFileMover()
 
 	// move files
 	for _, dirChildInfo := range dirChildrenInfo {
@@ -68,12 +68,10 @@ func MoveDirectory(srcDir string, destParentDir string) error {
 		}
 
 		childFile := path.Join(srcDir, dirChildInfo.Name())
-		err = MoveFile(childFile, destDir)
-		if err != nil {
-			log.Printf("Error moving file '%s' to '%s': %s", childFile, destDir, err)
-			moveErrors = append(moveErrors, err)
-		}
+		fileMover.ProcessFile(childFile, destDir)
 	}
+
+	moveErrors := fileMover.GetErrors()
 
 	// move directories
 	for _, dirChildInfo := range dirChildrenInfo {
