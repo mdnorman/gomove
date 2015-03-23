@@ -129,12 +129,13 @@ func ProcessFile(srcFile string, destFile string) chan MoveFileInfo {
 
 func MoveFile(srcFile string, destDir string) error {
 	destFile := path.Join(destDir, path.Base(srcFile))
-	log.Printf("Moving file '%s' to '%s'", srcFile, destFile)
 
 	srcFileInfo, err := os.Lstat(srcFile)
 	if err != nil {
 		return err
 	}
+
+	log.Printf("Moving file '%s' to '%s' (%s)", srcFile, destFile, ByteSize(srcFileInfo.Size()))
 
 	srcFileMode := srcFileInfo.Mode()
 	isSrcSymLink := srcFileMode&os.ModeSymlink != 0
