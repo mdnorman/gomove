@@ -7,6 +7,8 @@ import (
 	"os"
 )
 
+const MaxConcurrentFileCopies = 10
+
 type ErrorCode int
 
 const (
@@ -58,7 +60,9 @@ func main() {
 		ExitWithError(nil, UsageError, "Destination is not a directory:", destParentDir)
 	}
 
-	err = gomove.MoveDirectory(srcDir, destParentDir)
+	limiter := make(chan int, MaxConcurrentFileCopies)
+
+	err = gomove.MoveDirectory(limiter, srcDir, destParentDir)
 	if err != nil {
 		ExitWithError(err, MoveError, "There were errors moving", srcDir, "to", destParentDir)
 	}
