@@ -56,48 +56,57 @@ func MoveDirectory(moveLimiter chan int, srcDir string, destParentDir string) er
 		}
 	}
 
-	dirFile, err := os.Open(srcDir)
-	if err != nil {
-		return err
-	}
-
 	moveErrors := make([]error, 0)
 
-	var dirChildrenInfo []os.FileInfo
-	for dirChildrenInfo, err = dirFile.Readdir(DirChildBatchSize); err == nil; dirChildrenInfo, err = dirFile.Readdir(DirChildBatchSize) {
-		resultChans := make([]chan MoveFileInfo, 0)
+  done := false
+	for !done {
+		didWork := false
 
-		for _, dirChildInfo := range dirChildrenInfo {
-			if dirChildInfo.IsDir() {
-				childDir := path.Join(srcDir, dirChildInfo.Name())
-				err = MoveDirectory(moveLimiter, childDir, destDir)
-				if err != nil {
-					log.Printf("Error moving directory '%s' to '%s': %s", childDir, destDir, err)
-					moveErrors = append(moveErrors, err)
+		dirFile, err := os.Open(srcDir)
+		if err != nil {
+			return err
+		}
+
+		var dirChildrenInfo []os.FileInfo
+		for dirChildrenInfo, err = dirFile.Readdir(DirChildBatchSize); err == nil; dirChildrenInfo, err = dirFile.Readdir(DirChildBatchSize) {
+			resultChans := make([]chan MoveFileInfo, 0)
+
+			for _, dirChildInfo := range dirChildrenInfo {
+				if dirChildInfo.IsDir() {
+					childDir := path.Join(srcDir, dirChildInfo.Name())
+					err = MoveDirectory(moveLimiter, childDir, destDir)
+					if err != nil {
+						log.Printf("Error moving directory '%s' to '%s': %s", childDir, destDir, err)
+						moveErrors = append(moveErrors, err)
+					}
+				} else {
+					childFile := path.Join(srcDir, dirChildInfo.Name())
+					resultChan := ProcessFile(moveLimiter, childFile, destDir)
+					resultChans = append(resultChans, resultChan)
 				}
-			} else {
-				childFile := path.Join(srcDir, dirChildInfo.Name())
-				resultChan := ProcessFile(moveLimiter, childFile, destDir)
-				resultChans = append(resultChans, resultChan)
 			}
+
+			for _, resultChan := range resultChans {
+				moveFileInfo := <-resultChan
+				if moveFileInfo.Error != nil {
+					log.Printf("Error moving file '%s' to '%s': %s", moveFileInfo.SrcFile, moveFileInfo.DestDir, moveFileInfo.Error)
+					moveErrors = append(moveErrors, moveFileInfo.Error)
+				}
+			}
+
+			didWork = true
 		}
 
-		for _, resultChan := range resultChans {
-			moveFileInfo := <-resultChan
-			if moveFileInfo.Error != nil {
-				log.Printf("Error moving file '%s' to '%s': %s", moveFileInfo.SrcFile, moveFileInfo.DestDir, moveFileInfo.Error)
-				moveErrors = append(moveErrors, moveFileInfo.Error)
-			}
+		if err != io.EOF {
+			return CloseFilesAfterErr(err, dirFile)
 		}
-	}
 
-	if err != io.EOF {
-		return CloseFilesAfterErr(err, dirFile)
-	}
+		err = dirFile.Close()
+		if err != nil {
+			return err
+		}
 
-	err = dirFile.Close()
-	if err != nil {
-		return err
+		done = !didWork || !(len(moveErrors) == 0)
 	}
 
 	if len(moveErrors) > 0 {
