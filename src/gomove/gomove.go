@@ -58,7 +58,7 @@ func MoveDirectory(moveLimiter chan int, srcDir string, destParentDir string) er
 
 	moveErrors := make([]error, 0)
 
-  done := false
+	done := false
 	for !done {
 		didWork := false
 

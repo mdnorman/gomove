@@ -1,7 +1,7 @@
 package main
 
 import (
-	"denormans/gomove"
+	"denormans/gomove/gomove"
 	"flag"
 	"fmt"
 	"os"
